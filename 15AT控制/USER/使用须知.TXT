@@ -1,0 +1,35 @@
+作者说明：2019.8.26
+本程序部分借鉴正点原子代码，使用正点原子精英STM32F103ZET6开发板。
+仅供交流学习使用，不得用于商业用途。
+实现功能：向模块发送AT指令，并在超时时间内检测是否出现期望的返回值。
+		  如果需要对接收到的值进行处理，请自行补充处理函数。（即对USART_RX_BUF[USART_BUF_NUM][USART_REC_LEN]数组进行处理）
+		  接收到的数据存放方式：如接收到
+		  
+		  正在复位...
+		  复位成功！！
+		  ready
+		  WIFI GOT IP 192.168.1.1
+		  
+		  （那么）
+		  USART_RX_BUF[0]=“正在复位...”
+		  USART_RX_BUF[1]=“复位成功！！”
+		  USART_RX_BUF[2]=“ready”
+		  USART_RX_BUF[3]=“WIFI GOT IP 192.168.1.1”
+		  USART_RX_BUF[4]=“”
+		  USART_RX_BUF[5]=“”
+		  ...
+		  如果需要那个IP地址，则可以定义一个指针数组
+		  
+		  uint8_t * esp8266Respond[USART_BUF_NUM];
+		  //将指针数组赋值，指向多个缓冲区
+		  for (temp=0;temp<USART_BUF_NUM;temp++)
+		  {
+		 	 esp8266Respond[temp]=USART_RX_BUF[temp];
+		  }
+		  那么esp8266Respond[3] 中就存着你需要的IP
+		  处理方式请自行实现
+		  
+使用资源：基本定时器TIM6（用于超时检测）/串口1（作为AT指令交互通道）/GPIO（PB6、PB7，（IIC）我作为OLED调试显示使用，可有可无）
+使用方式：如果您需要使用其他串口或者其他定时器，请自行修改，注意使用前调整波特率!!
+		  使用代码时，将需要AT指令控制的模块的串口连接到单片机串口1即可。
+应用：可以实现蓝牙模块、WIFi模块、NB-IoT模块的AT带反馈控制，软件兼容性好。为兼容性牺牲了一些性能。
