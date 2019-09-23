@@ -1,0 +1,161 @@
+C51 COMPILER V9.00   MAIN                                                                  01/08/2018 18:00:54 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: E:\KEIL\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include <reg52.h>
+   2          #define uint unsigned int 
+   3          #define uchar unsigned char
+   4          
+   5          int D_S[10]={0x03,0x9F,0x25,0x0D,0x99,0x49,0x41,0x1F,0x01,0x09};//0,1,2,3,4,5,6,7,8,9
+   6          //绿灯（不闪）  
+   7          //红灯（不闪）
+   8          //黄灯（闪）
+   9          //flag=1,前后绿，flag=0,左右绿
+  10          int UD_t=6;//前后时间t
+  11          int LR_t=9;//左右时间t
+  12          sbit W_up_down=P2^0;//前后数码管位选
+  13          sbit W_left_right=P2^1;//左右数码管位选
+  14          sbit UD_G_led=P2^2;//前后绿
+  15          sbit UD_R_led=P2^3;//前后红
+  16          sbit UD_Y_led=P2^4;//前后黄
+  17          sbit LR_G_led=P2^5;//左右绿
+  18          sbit LR_R_led=P2^6;//左右红
+  19          sbit LR_Y_led=P2^7;//左右黄
+  20          
+  21          bit flag=1;//(前后 1)和（左右 0）判断标志位
+  22          
+  23          void delay()//延时函数1ms
+  24          {
+  25   1              int i;
+  26   1              for(i=0;i<1000;i++);
+  27   1      }
+  28          void up_down()//选通上下数码管
+  29          {                                
+  30   1              W_up_down=1;    
+  31   1              W_left_right=0; 
+  32   1      }
+  33          
+  34          void left_right()//选通左右数码管
+  35          {
+  36   1              W_up_down=0;
+  37   1              W_left_right=1;
+  38   1      }
+  39          void Time0_Init()//定时器0初始化
+  40          {
+  41   1              TMOD = 0X01;//选择为定时器0模式，工作方式1（16位不重装载定时），仅用TR0打开启动。
+  42   1              TH0 = (65536-50000)/256;        //给定时器赋初值，定时50ms
+  43   1              TL0 = (65536-50000)%256;        
+  44   1              ET0 = 1;//打开定时器0中断允许
+  45   1              EA = 1;//打开总中断
+  46   1              TR0 = 1;//打开定时器
+  47   1              UD_G_led=0;//上下绿灯点亮
+  48   1              LR_R_led=0;//左右红灯点亮
+  49   1      }
+  50          
+  51          void main()
+  52          {         
+  53   1                Time0_Init();
+  54   1                while(1)
+  55   1                {       
+C51 COMPILER V9.00   MAIN                                                                  01/08/2018 18:00:54 PAGE 2   
+
+  56   2                              P0=D_S[UD_t];//段码
+  57   2                              up_down();       //上下通行
+  58   2                              delay();         //延时一段时间，利用视觉暂留效应达到可视效果
+  59   2                              P0=0x00;         //消隐
+  60   2                              
+  61   2                              P0=D_S[LR_t]; //同上
+  62   2                              left_right();
+  63   2                              delay();
+  64   2                              P0=0x00;        
+  65   2                }
+  66   1      }
+  67          void Timer0() interrupt 1         //定时器1中断服务函数
+  68          {
+  69   1              static uint i;   //引入静态变量 i，中断20次也就是1秒的时候才执行功能
+  70   1              TH0 = (65536-50000)/256;        //给定时器赋初值，定时50ms
+  71   1              TL0 = (65536-50000)%256;        
+  72   1              i++;
+  73   1              if(i==20)  //到一秒
+  74   1              {
+  75   2                      i=0;
+  76   2                      UD_t--;
+  77   2                      LR_t--;
+  78   2                      if(flag==1)     // 上下通行
+  79   2                      {               
+  80   3                              LR_R_led=0;     //左右红灯亮
+  81   3                              UD_R_led=1;     //上下红灯灭
+  82   3                              if(LR_t<3)//进入黄灯
+  83   3                              {
+  84   4                                      if(UD_t<0&&LR_t!=0)
+  85   4                                      UD_t=2;
+  86   4                                      UD_G_led=1;                     //上下绿灯灭
+  87   4                                      UD_Y_led=!UD_Y_led;     //黄灯闪烁
+  88   4      
+  89   4                              }               
+  90   3                              else
+  91   3                              {
+  92   4                                      UD_G_led=0;      //绿灯亮
+  93   4                              }
+  94   3                              if(LR_t<0)                //如果到了交换路口的时候
+  95   3                              {
+  96   4                                      UD_t=9;         //进入下一状态           
+  97   4                                      LR_t=6;
+  98   4                                      flag=0;
+  99   4                                      UD_R_led=0;
+ 100   4                                      UD_G_led=1;
+ 101   4                                      LR_R_led=1;
+ 102   4                                      LR_G_led=0;
+ 103   4                              }               
+ 104   3                      }
+ 105   2                      else  //flag=0左右走
+ 106   2                      {
+ 107   3                              UD_R_led=0;
+ 108   3                              LR_R_led=1;                     
+ 109   3                              if(UD_t<3)//进入黄灯
+ 110   3                              {
+ 111   4                                      if(LR_t<0&&UD_t!=0)
+ 112   4                                      LR_t=2;
+ 113   4                                      LR_G_led=1;
+ 114   4                                      LR_Y_led=!LR_Y_led;
+ 115   4      
+ 116   4                              }               
+ 117   3                              else
+C51 COMPILER V9.00   MAIN                                                                  01/08/2018 18:00:54 PAGE 3   
+
+ 118   3                              {
+ 119   4                                      LR_G_led=0;     
+ 120   4                              }
+ 121   3                              if(UD_t<0)
+ 122   3                              {
+ 123   4                                      UD_t=6;
+ 124   4                                      LR_t=9;
+ 125   4                                      flag=1;
+ 126   4                                      LR_R_led=0;
+ 127   4                                      LR_G_led=1;
+ 128   4                                      UD_R_led=1;
+ 129   4                                      UD_G_led=0;
+ 130   4                              }                       
+ 131   3                      }               
+ 132   2              }       
+ 133   1      }
+ 134          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    301    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     26    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
